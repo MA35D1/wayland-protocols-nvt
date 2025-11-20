@@ -1,6 +1,6 @@
 project('wayland-protocols',
-	version: '1.41',
-	meson_version: '>= 0.58.0',
+	version: '1.32',
+	meson_version: '>= 0.55.0',
 	license: 'MIT/Expat',
 )
 
@@ -8,20 +8,11 @@ wayland_protocols_version = meson.project_version()
 
 fs = import('fs')
 
-dep_scanner = dependency('wayland-scanner',
-    version: get_option('tests') ? '>=1.23.0' : '>=1.20.0',
-    native: true,
-    fallback: 'wayland'
-)
-prog_scanner = find_program(dep_scanner.get_variable(pkgconfig: 'wayland_scanner', internal: 'wayland_scanner'))
-
-stable_protocols = {
-	'presentation-time': [''],
-	'viewporter': [''],
-	'xdg-shell': [''],
-	'linux-dmabuf': ['v1'],
-	'tablet': ['v2'],
-}
+stable_protocols = [
+	'presentation-time',
+	'viewporter',
+	'xdg-shell',
+]
 
 unstable_protocols = {
 	'fullscreen-shell': ['v1'],
@@ -42,61 +33,39 @@ unstable_protocols = {
 	'xdg-output': ['v1'],
 	'xdg-shell': ['v5', 'v6'],
 	'xwayland-keyboard-grab': ['v1'],
-	'alpha-compositing': ['v1'],
-	'hdr10-metadata': ['v1'],
 }
 
 staging_protocols = {
-	'color-management': ['v1'],
-	'commit-timing': ['v1'],
 	'content-type': ['v1'],
 	'cursor-shape': ['v1'],
 	'drm-lease': ['v1'],
-	'ext-data-control': ['v1'],
 	'ext-foreign-toplevel-list': ['v1'],
 	'ext-idle-notify': ['v1'],
-	'ext-image-capture-source': ['v1'],
-	'ext-image-copy-capture': ['v1'],
 	'ext-session-lock': ['v1'],
-	'ext-transient-seat': ['v1'],
-	'fifo': ['v1'],
 	'fractional-scale': ['v1'],
-	'linux-drm-syncobj': ['v1'],
 	'security-context': ['v1'],
 	'single-pixel-buffer': ['v1'],
 	'tearing-control': ['v1'],
 	'xdg-activation': ['v1'],
-	'xdg-dialog': ['v1'],
-	'xdg-system-bell': ['v1'],
-	'xdg-toplevel-drag': ['v1'],
-	'xdg-toplevel-icon': ['v1'],
 	'xwayland-shell': ['v1'],
-	'alpha-modifier': ['v1'],
-	'ext-workspace': ['v1'],
 }
 
 protocol_files = []
 
-foreach name, versions : stable_protocols
-	foreach version : versions
-		if version == ''
-			protocol_files += ['stable/@0@/@0@.xml'.format(name)]
-		else
-			protocol_files += ['stable/@0@/@0@-@1@.xml'.format(name, version)]
-		endif
-	endforeach
+foreach name : stable_protocols
+	protocol_files += ['stable/@0@/@0@.xml'.format(name)]
 endforeach
 
-foreach name, versions : staging_protocols
-	foreach version : versions
+foreach name : staging_protocols.keys()
+	foreach version : staging_protocols.get(name)
 		protocol_files += [
 			'staging/@0@/@0@-@1@.xml'.format(name, version)
 		]
 	endforeach
 endforeach
 
-foreach name, versions : unstable_protocols
-	foreach version : versions
+foreach name : unstable_protocols.keys()
+	foreach version : unstable_protocols.get(name)
 		protocol_files += [
 			'unstable/@0@/@0@-unstable-@1@.xml'.format(name, version)
 		]
@@ -123,12 +92,6 @@ foreach protocol_file : protocol_files
 	)
 endforeach
 
-include_dirs = []
-if dep_scanner.version().version_compare('>=1.22.90')
-	subdir('include/wayland-protocols')
-	include_dirs = ['include']
-endif
-
 wayland_protocols_srcdir = meson.current_source_dir()
 
 pkgconfig_configuration = configuration_data()
@@ -153,7 +116,6 @@ configure_file(
 )
 
 wayland_protocols = declare_dependency(
-	include_directories: include_dirs,
 	variables: {
 		'pkgdatadir': wayland_protocols_srcdir,
 	},
@@ -164,7 +126,3 @@ meson.override_dependency('wayland-protocols', wayland_protocols)
 if get_option('tests')
 	subdir('tests')
 endif
-
-summary({
-	'Headers': include_dirs.length() > 0,
-}, bool_yn: true)
